@@ -39,6 +39,7 @@ def run_worker(bench_name, shared_status, key):
     shared_status[key] = (False,time.time(),time.time(),"working")
     
     BENCH_NAME = bench_name
+    MAIN_MEMORY_CAPCITY = 64
     OUTPUT_DIR = getcwd() + "/sim_short/sim_test_out_" + BENCH_NAME
     ORI_PATH = getcwd()
     RAMULATOR_OUTPUT_PATH = OUTPUT_DIR + "/output_ramulator.yaml"
@@ -59,7 +60,8 @@ def run_worker(bench_name, shared_status, key):
                        "--ramu_output", RAMULATOR_OUTPUT_PATH,
                        "--spec_path", SPEC_PATH,
                        "--spec_bench_test",
-                       "--spec_bench", BENCH_NAME
+                       "--spec_bench", BENCH_NAME,
+                       "--ramu_cap",str(MAIN_MEMORY_CAPCITY),
                        ,"--str_maxinsts", str(max_inst)
                        ],shell=False, capture_output=True, text=True)
     

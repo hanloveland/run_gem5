@@ -16,9 +16,12 @@ GEM5_PATH = "../gem5_test/gem5"
 CPU_CONFIG_PATH = path.abspath(GEM5_PATH + "/skylake_config")
 COMMON_CONFIG_PATH = path.abspath(GEM5_PATH + "/configs")
 GEM5_RUN_PATH = path.abspath(GEM5_PATH + "/build/X86/gem5.opt")
-RAMULATOR2_CONFIG_PATH = path.abspath(GEM5_PATH + "/ext/ramulator2/ramulator2/ddr5_config.yaml")
+# RAMULATOR2_CONFIG_PATH = path.abspath(GEM5_PATH + "/ext/ramulator2/ramulator2/ddr5_config.yaml")
+RAMULATOR2_CONFIG_PATH = path.abspath("./ramulator2_config/ddr5_config.yaml")
 BENCH_PATH = path.abspath(GEM5_PATH + "/skylake_config/IntMM")
 SPEC_PATH = path.abspath("../SPEC_CPU2006/benchspec/CPU2006")
+# Unit is GB
+MAIN_MEMORY_CAPCITY=64
 # sys.path.append(GEM5_PATH)
 sys.path.append(CPU_CONFIG_PATH)
 sys.path.append(COMMON_CONFIG_PATH)
@@ -36,7 +39,8 @@ benchmark_list = [
 num_benchs = len(benchmark_list)
 
 BENCH_NAME = "400.perlbench"
-OUTPUT_DIR = getcwd() + "/sim_test_out_" + BENCH_NAME
+OUTPUT_FOLDER="/simout"
+OUTPUT_DIR = getcwd() + OUTPUT_FOLDER + "/sim_test_out_" + BENCH_NAME
 RAMULATOR_OUTPUT_PATH = OUTPUT_DIR + "/output_ramulator.yaml"
 max_inst = int(10e6)
 # Change Run Path 
@@ -55,6 +59,7 @@ subprocess.run([GEM5_RUN_PATH,
                 "--spec_path", SPEC_PATH,
                 "--spec_bench_test",
                 "--spec_bench", BENCH_NAME,
+                "--ramu_cap",str(MAIN_MEMORY_CAPCITY),
                 "--str_maxinsts", str(max_inst)])
 
 
