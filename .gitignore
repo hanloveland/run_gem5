@@ -1,4 +1,6 @@
+*.log
 m5out
 *.pyc
 simout/*
 sim*/
+Sim*/
