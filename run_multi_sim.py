@@ -146,13 +146,17 @@ if __name__ == '__main__':
     environ["GEM5_COMMON_CONFIG_PATH"] = COMMON_CONFIG_PATH
     environ["GEM5_CPU_CONFIG_PATH"] = CPU_CONFIG_PATH
 
-    # Not Working "416.gamess", "436.cactusADM", and "459.GemsFDTD"
+    # Not Working "400.perlbench", "416.gamess", "436.cactusADM", "450.soplex" and "459.GemsFDTD"
     benchmark_list = [
-        "400.perlbench", "401.bzip2", "403.gcc", "410.bwaves", "429.mcf", "433.milc",
-        "434.zeusmp", "435.gromacs", "437.leslie3d", "444.namd", "445.gobmk", "447.dealII",
-        "450.soplex", "453.povray","454.calculix", "456.hmmer", "458.sjeng", 
-        "462.libquantum","464.h264ref","465.tonto", "470.lbm","471.omnetpp", "473.astar",
-        "481.wrf", "482.sphinx3", "483.xalancbmk", "998.specrand", "999.specrand"]
+        "401.bzip2", "403.gcc", "410.bwaves", 
+        "429.mcf", 
+        "433.milc", "434.zeusmp", "435.gromacs", "437.leslie3d", 
+        "444.namd", "445.gobmk", "447.dealII",
+        "453.povray","454.calculix", "456.hmmer", "458.sjeng", 
+        "462.libquantum","464.h264ref","465.tonto", 
+        "470.lbm","471.omnetpp", "473.astar",
+        "481.wrf", "482.sphinx3", "483.xalancbmk", 
+        "998.specrand", "999.specrand"]
 
     # benchmark_list = ["400.perlbench"]
     num_benchs = len(benchmark_list)
