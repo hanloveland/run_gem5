@@ -16,7 +16,7 @@ MemorySystem:
     org:
       preset: DDR5_16Gb_x4
       channel: 2
-      rank: 2
+      rank: 4
     timing:
       preset: DDR5_3200AN 
     RFM:
@@ -39,4 +39,5 @@ MemorySystem:
     plugins:
 
   AddrMapper:
+    impl: RoCoBaRaCh
     impl: RoBaRaCoCh
