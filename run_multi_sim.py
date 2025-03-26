@@ -7,7 +7,7 @@
 # - gem5
 # - SPEC_CPU
 
-from os import chdir, getcwd, path, environ
+from os import chdir, getcwd, path, environ, mkdir
 import sys
 import subprocess
 from my_fuc import *
@@ -21,8 +21,8 @@ from datetime import datetime
 
 curses_done = False
 set_max_inst = True
-max_inst = int(10e5)
-ouput_dir_name = "/SimResult"
+max_inst = int(10e9)
+ouput_dir_name = "/SimResult_ProposedDDR5"
 spec_bench_is_test = False
 
 def exit_curses():
@@ -40,6 +40,19 @@ def conv_time(elapsed_second):
     elapsed_s = int((int(elapsed_second)%3600)%60)
     elapsed_time = f"{elapsed_h:2d}h {elapsed_m:2d}m {elapsed_s:2d}s"
     return elapsed_time
+
+def create_output_folder(folder_name):
+    if not path.exists(folder_name):
+        mkdir(folder_name)
+        return folder_name 
+
+    i = 1
+    new_folder_name = f"{folder_name}_{i}"
+    while path.exists(new_folder_name):
+        i += 1
+        new_folder_name = f"{folder_name}_{i}"
+    mkdir(new_folder_name)
+    return new_folder_name
 
 def run_worker(bench_name, shared_status, key, output_path):
     """
@@ -134,12 +147,16 @@ if __name__ == '__main__':
     CPU_CONFIG_PATH = path.abspath(GEM5_PATH + "/skylake_config")
     COMMON_CONFIG_PATH = path.abspath(GEM5_PATH + "/configs")
     GEM5_RUN_PATH = path.abspath(GEM5_PATH + "/build/X86/gem5.opt")
-    RAMULATOR2_CONFIG_PATH = path.abspath(GEM5_PATH + "/ext/ramulator2/ramulator2/ddr5_config.yaml")
+    # GEM5_RUN_PATH = path.abspath(GEM5_PATH + "/build/X86/gem5.fast")
+    # RAMULATOR2_CONFIG_PATH = path.abspath("ramulator2_config/ddr5_config.yaml")
+    RAMULATOR2_CONFIG_PATH = path.abspath("ramulator2_config/ddr5_pch_config.yaml")
     BENCH_PATH = path.abspath(GEM5_PATH + "/skylake_config/IntMM")
     SPEC_PATH = path.abspath("../SPEC_CPU2006/benchspec/CPU2006")
 
     ## Simulation Result Top 
     OUTPUT_DIR = getcwd() + ouput_dir_name
+    OUTPUT_DIR = create_output_folder(OUTPUT_DIR)
+
     sys.path.append(CPU_CONFIG_PATH)
     sys.path.append(COMMON_CONFIG_PATH)
     sys.path.append(CPU_CONFIG_PATH+"/system")
