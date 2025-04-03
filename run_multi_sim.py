@@ -63,6 +63,7 @@ def run_worker(bench_name, shared_status, key, output_path):
     shared_status[key] = (False,time.time(),time.time(),"working")
     
     BENCH_NAME = bench_name
+    NUM_CORES = 8
     MAIN_MEMORY_CAPCITY = 64
     OUTPUT_DIR = output_path + "/" + BENCH_NAME
     ORI_PATH = getcwd()
@@ -85,6 +86,9 @@ def run_worker(bench_name, shared_status, key, output_path):
     gem5_command.append("--redirect-stderr")
     # Skylake configuration Path 
     gem5_command.append(CPU_CONFIG_PATH+"/run-se.py")
+    # the number of process 
+    gem5_command.append("--str_numcores")
+    gem5_command.append(str(NUM_CORES))
     # Ramulator2 Memory Configuration Path 
     gem5_command.append("--ramu_config")
     gem5_command.append(RAMULATOR2_CONFIG_PATH)
@@ -110,17 +114,6 @@ def run_worker(bench_name, shared_status, key, output_path):
 
     # Run the command (blocking call)
     result = subprocess.run(gem5_command,shell=False, capture_output=True, text=True)
-    # result = subprocess.run([GEM5_RUN_PATH, 
-    #                    "--outdir="+OUTPUT_DIR,
-    #                    "--redirect-stdout",
-    #                    "--redirect-stderr",
-    #                    CPU_CONFIG_PATH+"/run-se.py",
-    #                    "--ramu_config", RAMULATOR2_CONFIG_PATH, 
-    #                    "--ramu_output", RAMULATOR_OUTPUT_PATH,
-    #                    "--spec_path", SPEC_PATH,
-    #                    "--spec_bench", BENCH_NAME,
-    #                    "--ramu_cap",str(MAIN_MEMORY_CAPCITY)
-    #                    ],shell=False, capture_output=True, text=True)
     # Record finish time and command output as a tuple
     finish_time = time.time() 
     shared_status[key] = (True, shared_status[key][1], finish_time, result.stdout.strip())
@@ -164,17 +157,20 @@ if __name__ == '__main__':
     environ["GEM5_CPU_CONFIG_PATH"] = CPU_CONFIG_PATH
 
     # Not Working "400.perlbench", "416.gamess", "436.cactusADM", "450.soplex" and "459.GemsFDTD"
-    benchmark_list = [
-        "401.bzip2", "403.gcc", "410.bwaves", 
-        "429.mcf", 
-        "433.milc", "434.zeusmp", "435.gromacs", "437.leslie3d", 
-        "444.namd", "445.gobmk", "447.dealII",
-        "453.povray","454.calculix", "456.hmmer", "458.sjeng", 
-        "462.libquantum","464.h264ref","465.tonto", 
-        "470.lbm","471.omnetpp", "473.astar",
-        "481.wrf", "482.sphinx3", "483.xalancbmk", 
-        "998.specrand", "999.specrand"]
+    #benchmark_list = [
+    #    "401.bzip2", "403.gcc", "410.bwaves", 
+    #    "429.mcf", 
+    #    "433.milc", "434.zeusmp", "435.gromacs", "437.leslie3d", 
+    #    "444.namd", "445.gobmk", "447.dealII",
+    #    "453.povray","454.calculix", "456.hmmer", "458.sjeng", 
+    #    "462.libquantum","464.h264ref","465.tonto", 
+    #    "470.lbm","471.omnetpp", "473.astar",
+    #    "481.wrf", "482.sphinx3", "483.xalancbmk", 
+    #    "998.specrand", "999.specrand"]
 
+    benchmark_list = ["401.bzip2", "410.bwaves", "429.mcf", "433.milc", "434.zeusmp","445.gobmk", "464.h264ref","465.tonto", "481.wrf" ]
+
+ 
     # benchmark_list = ["400.perlbench"]
     num_benchs = len(benchmark_list)
 

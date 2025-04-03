@@ -18,6 +18,7 @@ COMMON_CONFIG_PATH = path.abspath(GEM5_PATH + "/configs")
 GEM5_RUN_PATH = path.abspath(GEM5_PATH + "/build/X86/gem5.opt")
 # RAMULATOR2_CONFIG_PATH = path.abspath(GEM5_PATH + "/ext/ramulator2/ramulator2/ddr5_config.yaml")
 RAMULATOR2_CONFIG_PATH = path.abspath("./ramulator2_config/ddr5_config.yaml")
+# RAMULATOR2_CONFIG_PATH = path.abspath("./ramulator2_config/ddr5_pch_config.yaml")
 BENCH_PATH = path.abspath(GEM5_PATH + "/skylake_config/IntMM")
 SPEC_PATH = path.abspath("../SPEC_CPU2006/benchspec/CPU2006")
 # Unit is GB
@@ -38,13 +39,15 @@ benchmark_list = [
 
 num_benchs = len(benchmark_list)
 
-BENCH_NAME = "400.perlbench"
-OUTPUT_FOLDER="/simout"
+BENCH_NAME = "429.mcf"
+OUTPUT_FOLDER="/simout_base"
 OUTPUT_DIR = getcwd() + OUTPUT_FOLDER + "/sim_test_out_" + BENCH_NAME
 RAMULATOR_OUTPUT_PATH = OUTPUT_DIR + "/output_ramulator.yaml"
+GEM5_NUM_CORE=8
 max_inst = int(10e6)
 # Change Run Path 
-run_path = get_spec_bench_path(SPEC_PATH,BENCH_NAME,True)
+#run_path = get_spec_bench_path(SPEC_PATH,BENCH_NAME,True)
+run_path = get_spec_bench_path(SPEC_PATH,BENCH_NAME,False)
 print("Change Working Path to ",run_path)
 chdir(run_path)
 # print(getcwd())
@@ -54,10 +57,11 @@ chdir(run_path)
 subprocess.run([GEM5_RUN_PATH, 
                 "--outdir="+OUTPUT_DIR,
                 CPU_CONFIG_PATH+"/run-se.py",
+                "--str_numcores", str(GEM5_NUM_CORE),
                 "--ramu_config", RAMULATOR2_CONFIG_PATH, 
                 "--ramu_output", RAMULATOR_OUTPUT_PATH,
                 "--spec_path", SPEC_PATH,
-                "--spec_bench_test",
+                #"--spec_bench_test",
                 "--spec_bench", BENCH_NAME,
                 "--ramu_cap",str(MAIN_MEMORY_CAPCITY),
                 "--str_maxinsts", str(max_inst)])
