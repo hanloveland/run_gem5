@@ -20,6 +20,11 @@ MemorySystem:
       rank: 1
     timing:
       preset: DDR5_3200AN 
+      # preset: DDR5_4800B 
+      # preset: DDR5_6400AN 
+      # preset: DDR5_7200AN 
+      # preset: DDR5_8000AN 
+      # preset: DDR5_8800AN 
     RFM:
       BRC: 0  
     drampower_enable: false
