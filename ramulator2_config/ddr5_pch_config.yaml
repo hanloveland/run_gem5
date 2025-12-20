@@ -14,25 +14,34 @@ MemorySystem:
   DRAM:
     impl: DDR5-pCH
     org:
-      preset: DDR5_16Gb_x4
+      # DBX Preset: DDR5_16Gb_x4, DDR5_16Gb_x8, DDR5_16Gb_x16 
+      preset: DDR5_16Gb_DBX_x4
       channel: 2
       pseudochannel : 4
       rank: 1
+      # DRAM DQs on DIMM-side: 4, 8, 16  
+      dq: 4
+      real_dq: 4
+      # IO Freqeucny Boost: 1 2, 4
+      io_boost: 1
     timing:
-      preset: DDR5_3200AN 
-      # preset: DDR5_4800B 
+      # preset: DDR5_3200AN 
+      preset: DDR5_4800B 
       # preset: DDR5_6400AN 
       # preset: DDR5_7200AN 
       # preset: DDR5_8000AN 
-      # preset: DDR5_8800AN 
+      # preset: DDR5_8800AN  
     RFM:
       BRC: 0  
-    drampower_enable: false
+    drampower_enable: true
+    power_debug: false
     use_db_fetch: true
+    ndp_inst_slot: 8
     voltage:
       preset: Default
     current:
-      preset: Default
+      # DBX preset: DDR5_4800x4, DDR5_4800x8, DDR5_4800x16
+      preset: DDR5_4800x4
 
   Controller:
     impl: ndpDRAMCtrl
@@ -41,10 +50,17 @@ MemorySystem:
     RefreshManager:
       impl: DR5CHAllBank
     RowPolicy:
-      impl: OpenRowPolicy
-      cap: 4
+      # impl: OpenRowPolicy
+      impl: ClosedRowPolicyPch
+      cap: 128
     plugins:
+    ndp_wr_max_age: 256
+    ndp_wr_mode_min_time: 256
+    dram_rd_mode_min_time: 256
+    ndp_read_high_threshold: 0.75
+    ndp_write_high_threshold: 0.75
+    ndp_read_low_threshold: 0.25
+    ndp_write_low_threshold: 0.25
 
   AddrMapper:
-    impl: RoCoBaRaPcCh
-    # impl: RoBaRaCoPcCh
+    impl: RoRaCoBaPcCh
