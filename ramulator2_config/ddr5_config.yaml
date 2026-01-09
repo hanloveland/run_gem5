@@ -10,6 +10,10 @@ Frontend:
 MemorySystem:
   impl: GenericDRAM
   clock_ratio: 1
+  trace_core_enable: false
+  trace_ndp_type: false
+  trace_path: "/home/mklee/sim_env/run_gem5/ramulator2_config/baseline_trace/baseline_128K_GEMV.txt"
+  trace_core_mshr_size: 32
 
   DRAM:
     impl: DDR5
@@ -18,15 +22,15 @@ MemorySystem:
       channel: 2
       rank: 4
     timing:
-      preset: DDR5_3200AN 
-      # preset: DDR5_4800B 
+      # preset: DDR5_3200AN 
+      preset: DDR5_4800B 
       # preset: DDR5_6400AN 
       # preset: DDR5_7200AN 
       # preset: DDR5_8000AN 
       # preset: DDR5_8800AN 
     RFM:
       BRC: 0  
-    drampower_enable: false
+    drampower_enable: true
     voltage:
       preset: Default
     current:
@@ -44,5 +48,6 @@ MemorySystem:
     plugins:
 
   AddrMapper:
-    impl: RoCoBaRaCh
+    # impl: RoCoBaRaCh
     # impl: RoBaRaCoCh
+    impl: RoRaCoBaCh

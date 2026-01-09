@@ -11,6 +11,8 @@ from os import chdir, getcwd, path, environ, mkdir
 import sys
 import subprocess
 from my_fuc import *
+import argparse
+from pathlib import Path   
 
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -20,19 +22,69 @@ import curses
 from datetime import datetime
 
 curses_done = False
-set_max_inst = True
-max_inst = int(10e9)
-ouput_dir_name = "/SimResult_ProposedDDR5"
 spec_bench_is_test = False
+# set_max_inst = True
+# max_inst = int(10e5)
+# ouput_dir_name = "/POLY_TEST"
+# bench_type = "polybench" # or "spec_cpu"
+# gem5_sim_num_core = 4
 
-def exit_curses():
-    global curses_done
-    if curses_done == False:
-        curses_done = True
-        stdscr.keypad(False)
-        curses.nocbreak()
-        curses.echo()
-        curses.endwin()
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="run_multi_sim.py",
+        description="Bulk runner for SPEC CPU / PolyBench with structured outputs.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    # 1) Benchmark suite selection
+    p.add_argument("--suite", choices=["spec_cpu", "polybench"], required=True, help="Benchmark suite to run.",
+    )
+
+    # 2) Number of CPUs (gem5 --num-cpus)
+    p.add_argument("--num-cpus",type=int,default=1,metavar="N",help="Number of CPUs to simulate in gem5.",
+    )
+
+    # 3) Gem5 max simulation instructions
+    p.add_argument("--max-inst",type=int,default=0,metavar="N",help="Maximum number of simulated instructions in gem5 (0 = no limit).",
+    )
+
+    # 4) Simulation output directory
+    p.add_argument("--outdir",type=Path,required=True,help="Simulation output directory (e.g., gem5 m5out path).",
+    )
+
+    # 5) Ramulator configuration file path
+    p.add_argument("--ramulator-config",type=Path,required=True,help="Path to Ramulator2 configuration file.",
+    )
+
+    p.add_argument("--no-curses", action="store_true", help="Disable curses UI."
+    )   
+
+    return p
+
+def init_curses():
+    stdscr = curses.initscr()
+    curses.noecho()
+    curses.cbreak()
+    stdscr.keypad(True)
+    curses.curs_set(0)
+    return stdscr
+
+def exit_curses(stdscr):
+    if stdscr is None:
+        return
+    curses.nocbreak()
+    stdscr.keypad(False)
+    curses.echo()
+    curses.endwin()
+
+# def exit_curses():
+#     global curses_done
+#     if curses_done == False:
+#         curses_done = True
+#         stdscr.keypad(False)
+#         curses.nocbreak()
+#         curses.echo()
+#         curses.endwin()
 
 def conv_time(elapsed_second):
     elapsed_h = int(int(elapsed_second)/3600)
@@ -54,7 +106,7 @@ def create_output_folder(folder_name):
     mkdir(new_folder_name)
     return new_folder_name
 
-def run_worker(bench_name, shared_status, key, output_path):
+def run_worker(behcn_type, bench_name, shared_status, key, output_path):
     """
     Records the start time, runs the command, then records the finish time and output.
     """
@@ -63,17 +115,21 @@ def run_worker(bench_name, shared_status, key, output_path):
     shared_status[key] = (False,time.time(),time.time(),"working")
     
     BENCH_NAME = bench_name
-    NUM_CORES = 8
-    MAIN_MEMORY_CAPCITY = 64
+    NUM_CORES = gem5_sim_num_core
+    MAIN_MEMORY_CAPCITY = 128
     OUTPUT_DIR = output_path + "/" + BENCH_NAME
     ORI_PATH = getcwd()
     RAMULATOR_OUTPUT_PATH = OUTPUT_DIR + "/output_ramulator.yaml"    
     # Change Run Path 
-    run_path = get_spec_bench_path(SPEC_PATH,BENCH_NAME,spec_bench_is_test)
-    if spec_bench_is_test == True:
-        spec_bench_test = "--spec_bench_test"
-    else:
-        spec_bench_test = ""
+    if bench_type == "spec_cpu":
+        run_path = get_spec_bench_path(SPEC_PATH,BENCH_NAME,spec_bench_is_test)
+        if spec_bench_is_test == True:
+            spec_bench_test = "--spec_bench_test"
+        else:
+            spec_bench_test = ""
+    elif bench_type == "polybench":
+        run_path = get_poly_bench_path(POLY_PATH,BENCH_NAME)
+
     chdir(run_path)
 
     # Make Gem5 Running Command
@@ -98,19 +154,23 @@ def run_worker(bench_name, shared_status, key, output_path):
     # Ramulator2 Memory Capacity
     gem5_command.append("--ramu_cap")    
     gem5_command.append(str(MAIN_MEMORY_CAPCITY))    
-    # Spec CPU Benchmark Path
-    gem5_command.append("--spec_path")        
-    gem5_command.append(SPEC_PATH)        
-    # Spec CPU Benchmark Name
-    gem5_command.append("--spec_bench")            
-    gem5_command.append(BENCH_NAME)        
+    if bench_type == "spec_cpu":
+        # Spec CPU Benchmark Path
+        gem5_command.append("--spec_path")        
+        gem5_command.append(SPEC_PATH)        
+        # Spec CPU Benchmark Name
+        gem5_command.append("--spec_bench")            
+        gem5_command.append(BENCH_NAME)        
+        if spec_bench_is_test:
+                gem5_command.append( "--spec_bench_test")   
+    elif bench_type == "polybench":
+        gem5_command.append("--poly_bench") 
+        gem5_command.append(BENCH_NAME) 
     # Set Gem5 Simulation Instruction Number 
     if set_max_inst:
             gem5_command.append("--str_maxinsts")   
             gem5_command.append(str(max_inst))   
     # set Specbenchmark Dataset Size (test or ref)
-    if spec_bench_is_test:
-            gem5_command.append( "--spec_bench_test")   
 
     # Run the command (blocking call)
     result = subprocess.run(gem5_command,shell=False, capture_output=True, text=True)
@@ -125,6 +185,30 @@ def run_worker(bench_name, shared_status, key, output_path):
 
 
 if __name__ == '__main__':
+    args = build_parser().parse_args()
+    global set_max_inst
+    global max_inst
+    global ouput_dir_name
+    global bench_type
+    global ramulator_config_path
+
+    bench_type = args.suite
+    gem5_sim_num_core = args.num_cpus
+    ouput_dir_name = str(args.outdir)
+
+    if args.max_inst == 0:
+        set_max_inst = False
+        max_inst = 0
+    else:
+        set_max_inst = True
+        max_inst = args.max_inst
+
+    ramulator_config_path = str(args.ramulator_config)
+
+    no_use_curses = args.no_curses
+
+    # print(args)
+    # exit(1)
     now = datetime.now()
     # Create a shared dictionary using multiprocessing.Manager
     print("=================================================================")
@@ -142,13 +226,16 @@ if __name__ == '__main__':
     GEM5_RUN_PATH = path.abspath(GEM5_PATH + "/build/X86/gem5.opt")
     # GEM5_RUN_PATH = path.abspath(GEM5_PATH + "/build/X86/gem5.fast")
     # RAMULATOR2_CONFIG_PATH = path.abspath("ramulator2_config/ddr5_config.yaml")
-    RAMULATOR2_CONFIG_PATH = path.abspath("ramulator2_config/ddr5_pch_config.yaml")
+    # RAMULATOR2_CONFIG_PATH = path.abspath("ramulator2_config/ddr5_pch_config.yaml")
+    RAMULATOR2_CONFIG_PATH = path.abspath(ramulator_config_path)    
     BENCH_PATH = path.abspath(GEM5_PATH + "/skylake_config/IntMM")
     SPEC_PATH = path.abspath("../SPEC_CPU2006/benchspec/CPU2006")
+    POLY_PATH = path.abspath("../PolyBenchC-4.2.1/build")
 
     ## Simulation Result Top 
-    OUTPUT_DIR = getcwd() + ouput_dir_name
-    OUTPUT_DIR = create_output_folder(OUTPUT_DIR)
+    OUTPUT_DIR = getcwd() + "/" + ouput_dir_name
+    if not no_use_curses:
+        OUTPUT_DIR = create_output_folder(OUTPUT_DIR)
 
     sys.path.append(CPU_CONFIG_PATH)
     sys.path.append(COMMON_CONFIG_PATH)
@@ -156,63 +243,100 @@ if __name__ == '__main__':
     environ["GEM5_COMMON_CONFIG_PATH"] = COMMON_CONFIG_PATH
     environ["GEM5_CPU_CONFIG_PATH"] = CPU_CONFIG_PATH
 
+    if (bench_type != "spec_cpu" and bench_type != "polybench"):
+        print(f" Wrong Benchmark Type - {bench_type}")
+        exit(1)
+
     # Not Working "400.perlbench", "416.gamess", "436.cactusADM", "450.soplex" and "459.GemsFDTD"
-    #benchmark_list = [
-    #    "401.bzip2", "403.gcc", "410.bwaves", 
-    #    "429.mcf", 
-    #    "433.milc", "434.zeusmp", "435.gromacs", "437.leslie3d", 
-    #    "444.namd", "445.gobmk", "447.dealII",
-    #    "453.povray","454.calculix", "456.hmmer", "458.sjeng", 
-    #    "462.libquantum","464.h264ref","465.tonto", 
-    #    "470.lbm","471.omnetpp", "473.astar",
-    #    "481.wrf", "482.sphinx3", "483.xalancbmk", 
-    #    "998.specrand", "999.specrand"]
+    if bench_type == "spec_cpu":
+        # benchmark_list = ["401.bzip2"]
+        benchmark_list = [
+           "401.bzip2", "403.gcc", "410.bwaves", 
+           "429.mcf", 
+           "433.milc", "434.zeusmp", "435.gromacs", "437.leslie3d", 
+           "444.namd", "445.gobmk",
+           "453.povray","454.calculix", "456.hmmer", "458.sjeng", 
+           "462.libquantum","464.h264ref","465.tonto", 
+           "470.lbm","471.omnetpp", "473.astar",
+           "481.wrf", "482.sphinx3", "483.xalancbmk", 
+           "998.specrand", "999.specrand"]
 
-    benchmark_list = ["401.bzip2", "410.bwaves", "429.mcf", "433.milc", "434.zeusmp","445.gobmk", "464.h264ref","465.tonto", "481.wrf" ]
+        # benchmark_list = ["401.bzip2", "410.bwaves", "429.mcf", "433.milc", "434.zeusmp","445.gobmk", "464.h264ref","465.tonto", "481.wrf" ]
 
+    elif bench_type == "polybench":
+        benchmark_list = ["2mm","3mm","adi","cholesky","correlation","covariance","doitgen","fdtd-2d",
+                        "floyd-warshall","gemm","gramschmidt","heat-3d","jacobi-2d","lu","ludcmp","nussinov",
+                        "seidel-2d","symm","syr2k","syrk","trmm"]
  
     # benchmark_list = ["400.perlbench"]
     num_benchs = len(benchmark_list)
 
-    num_workers = 8
+    num_workers = 4
     start_time = time.time()
-    stdscr = curses.initscr() 
-    curses.noecho()
-    curses.cbreak()
-    stdscr.keypad(True)
-    curses.curs_set(0)  
+
+    stdscr = None
+    if not no_use_curses:
+        stdscr = init_curses()    
+        stdscr.keypad(True)
+        curses.curs_set(0)          
+
     try: 
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
             # Submit tasks with a unique key for each command
-            futures = {executor.submit(run_worker, cmd, status_dict, i, OUTPUT_DIR): i for i, cmd in enumerate(benchmark_list)}
+            futures = {executor.submit(run_worker, bench_type, cmd, status_dict, i, OUTPUT_DIR): i for i, cmd in enumerate(benchmark_list)}
             
             # Monitor the status of each task while any task is still running
-            done_cnt = 0
-            while any(not f.done() for f in futures):
-                stdscr.clear()
-                sim_elapsed = time.time() - start_time
-                elapsed_time = conv_time(sim_elapsed)
-                stdscr.addstr(0, 0, f"Running Gem5 Simulation [{done_cnt}/{num_benchs}].....{elapsed_time} elapsed....")
+            if not no_use_curses:
                 done_cnt = 0
-                for key in list(status_dict.keys()):
-                    value = status_dict[key]
-                    # If the value is a float, the task is still running; value represents the start time
-                    if value[0] == False:
-                        elapsed = time.time() - value[1]
-                        elapsed_time = conv_time(elapsed)
-                        # print(f"Task {key} running: {elapsed:.2f} sec elapsed")
-                        stdscr.addstr(key+1, 2, f"Worker [{key:2d}][{benchmark_list[key]:15s}] [RUNNING]: {elapsed_time} elapsed")
-                    else:
-                        elapsed = value[2] - value[1]
-                        elapsed_time = conv_time(elapsed)
-                        stdscr.addstr(key+1, 2, f"Worker [{key:2d}][{benchmark_list[key]:15s}] [DONE   ]: {elapsed_time} elapsed")
-                        done_cnt=done_cnt+1
-                    # If the task is finished, value is a tuple (finish_time, output)
-                stdscr.refresh()
-                time.sleep(1)  # Adjust polling interval as needed
-        exit_curses()
+                while any(not f.done() for f in futures):
+                    stdscr.clear()
+                    sim_elapsed = time.time() - start_time
+                    elapsed_time = conv_time(sim_elapsed)
+                    done_cnt = 0
+
+                    stdscr.addstr(0, 0, f"Running Gem5 Simulation [{done_cnt}/{num_benchs}].....{elapsed_time} elapsed....")
+                    
+                    for key in list(status_dict.keys()):
+                        value = status_dict[key]
+                        # If the value is a float, the task is still running; value represents the start time
+                        if value[0] == False:
+                            elapsed = time.time() - value[1]
+                            elapsed_time = conv_time(elapsed)
+                            # print(f"Task {key} running: {elapsed:.2f} sec elapsed")
+                            stdscr.addstr(key+1, 2, f"Worker [{key:2d}][{benchmark_list[key]:15s}] [RUNNING]: {elapsed_time} elapsed")
+                        else:
+                            elapsed = value[2] - value[1]
+                            elapsed_time = conv_time(elapsed)
+                            stdscr.addstr(key+1, 2, f"Worker [{key:2d}][{benchmark_list[key]:15s}] [DONE   ]: {elapsed_time} elapsed")
+                            done_cnt=done_cnt+1
+                        # If the task is finished, value is a tuple (finish_time, output)
+                    stdscr.refresh()
+                    time.sleep(5)  # Adjust polling interval as needed
+            else:
+                # 각 벤치마크가 끝나는 즉시 future가 완료되므로, 그 순간 1줄만 출력
+                for f in as_completed(futures):
+                    idx = futures[f]
+                    bench_name = benchmark_list[idx]
+
+                    # elapsed time은 status_dict에 end/start가 이미 기록된다는 가정
+                    # value: (done_bool, start_time, end_time)
+                    try:
+                        value = status_dict[idx]
+                        if value[0] is True:
+                            elapsed = value[2] - value[1]
+                            print(f"[DONE] {bench_name}  {conv_time(elapsed)}")
+                        else:
+                            # 혹시 status_dict 업데이트가 늦는 경우를 대비
+                            print(f"[DONE] {bench_name}")
+                    except Exception:
+                        print(f"[DONE] {bench_name}")
+
+                    # worker 내부 예외가 있으면 여기서 raise되게 해서 실패를 바로 알 수 있음
+                    f.result()                
+        exit_curses(stdscr)
+
     except:
-        exit_curses()
+        exit_curses(stdscr)
         print("Error Occurs (curses)")
                                 
 

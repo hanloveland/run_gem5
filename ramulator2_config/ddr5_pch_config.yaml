@@ -10,8 +10,11 @@ Frontend:
 MemorySystem:
   impl: ndpDRAM
   clock_ratio: 1
-  ndp_trace_enable: true
-  ndp_trace: "/home/mklee/sim_env/run_gem5/ramulator2_config/ndp_trace/pch_ndp_x4_128K_GEMV.txt"
+  trace_core_enable: false
+  trace_ndp_type: false
+  trace_path: "/home/mklee/sim_env/run_gem5/ramulator2_config/dbx_ndp_trace/pch_ndp_x4_128K_GEMV.txt"
+  # trace_path: "/home/mklee/sim_env/run_gem5/ramulator2_config/dbx_non_ndp_trace/pch_ndp_x4_128K_GEMV.txt"
+  trace_core_mshr_size: 32
 
   DRAM:
     impl: DDR5-pCH
