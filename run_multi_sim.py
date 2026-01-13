@@ -29,15 +29,31 @@ spec_bench_is_test = False
 # bench_type = "polybench" # or "spec_cpu"
 # gem5_sim_num_core = 4
 
+mix_benchmark_dic = {
+    "h1": "429.mcf:470.lbm:syr2k:fdtd-2d",
+    "h2": "433.milc:481.wrf:syrk:covariance",
+    "h3": "470.lbm:481.wrf:symm:correlation",
+    "m1": "410.bwaves:437.leslie3d:lu:gramschmidt",
+    "m2": "410.bwaves:458.sjeng:trmm:gemm",
+    "m3": "437.leslie3d:458.sjeng:adi:heat-3d",
+    "l1": "403.gcc:401.bzip2:doitgen:nussinov",
+    "l2": "473.astar:434.zeusmp:seidel-2d:floyd-warshall",
+    "l3": "462.libquantum:403.gcc:seidel-2d:doitgen",
+    "x1": "470.lbm:410.bwaves:lu:seidel-2d",
+    "x2": "429.mcf:437.leslie3d:gemm:floyd-warshall",
+    "x3": "481.wrf:458.sjeng:adi:doitgen",
+    "t1": "481.wrf:482.sphinx3:483.xalancbmk:998.specrand",
+}
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="run_multi_sim.py",
-        description="Bulk runner for SPEC CPU / PolyBench with structured outputs.",
+        description="Bulk runner for SPEC CPU / PolyBench / mix with structured outputs.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
     # 1) Benchmark suite selection
-    p.add_argument("--suite", choices=["spec_cpu", "polybench"], required=True, help="Benchmark suite to run.",
+    p.add_argument("--suite", choices=["spec_cpu", "polybench", "mix"], required=True, help="Benchmark suite to run. (Mix is fixed at 4 CPU cores.)",
     )
 
     # 2) Number of CPUs (gem5 --num-cpus)
@@ -106,7 +122,7 @@ def create_output_folder(folder_name):
     mkdir(new_folder_name)
     return new_folder_name
 
-def run_worker(behcn_type, bench_name, shared_status, key, output_path):
+def run_worker(bench_type, bench_name, shared_status, key, output_path):
     """
     Records the start time, runs the command, then records the finish time and output.
     """
@@ -121,14 +137,20 @@ def run_worker(behcn_type, bench_name, shared_status, key, output_path):
     ORI_PATH = getcwd()
     RAMULATOR_OUTPUT_PATH = OUTPUT_DIR + "/output_ramulator.yaml"    
     # Change Run Path 
-    if bench_type == "spec_cpu":
-        run_path = get_spec_bench_path(SPEC_PATH,BENCH_NAME,spec_bench_is_test)
-        if spec_bench_is_test == True:
-            spec_bench_test = "--spec_bench_test"
-        else:
-            spec_bench_test = ""
-    elif bench_type == "polybench":
-        run_path = get_poly_bench_path(POLY_PATH,BENCH_NAME)
+    if path.exists(OUTPUT_DIR):
+        rmdir(OUTPUT_DIR)        
+    mkdir(OUTPUT_DIR)
+    run_path = OUTPUT_DIR + "/run"
+    mkdir(run_path)
+    if bench_type == "spec_cpu" or bench_type == "polybench":
+        for i in range(NUM_CORES):
+            core_cwd = run_path + "/core_"+str(i) + "_" + BENCH_NAME
+            mkdir(core_cwd)
+    elif bench_type == "mix":
+        mix_bench = mix_benchmark_dic.get(bench_name, "Cannot Find Mix-benchmark list")
+        for i, b in enumerate(mix_bench.split(":")):
+            core_cwd = run_path + "/core_"+str(i) + "_" + b
+            mkdir(core_cwd)
 
     chdir(run_path)
 
@@ -162,10 +184,26 @@ def run_worker(behcn_type, bench_name, shared_status, key, output_path):
         gem5_command.append("--spec_bench")            
         gem5_command.append(BENCH_NAME)        
         if spec_bench_is_test:
-                gem5_command.append( "--spec_bench_test")   
+            gem5_command.append( "--spec_bench_test")   
+        gem5_command.append("--run_path")
+        gem5_command.append(run_path)                 
     elif bench_type == "polybench":
+        gem5_command.append("--poly_path")
+        gem5_command.append(POLY_PATH)            
         gem5_command.append("--poly_bench") 
         gem5_command.append(BENCH_NAME) 
+        gem5_command.append("--run_path")
+        gem5_command.append(run_path)          
+    elif bench_type == "mix":
+        gem5_command.append("--spec_path")
+        gem5_command.append(SPEC_PATH)  
+        gem5_command.append("--poly_path")
+        gem5_command.append(POLY_PATH)                    
+        gem5_command.append("--run_path")
+        gem5_command.append(run_path)                    
+        gem5_command.append("--mix_bench")
+        gem5_command.append(mix_bench)
+        
     # Set Gem5 Simulation Instruction Number 
     if set_max_inst:
             gem5_command.append("--str_maxinsts")   
@@ -234,6 +272,7 @@ if __name__ == '__main__':
 
     ## Simulation Result Top 
     OUTPUT_DIR = getcwd() + "/" + ouput_dir_name
+    OUTPUT_DIR = create_output_folder(OUTPUT_DIR)
     if not no_use_curses:
         OUTPUT_DIR = create_output_folder(OUTPUT_DIR)
 
@@ -243,7 +282,7 @@ if __name__ == '__main__':
     environ["GEM5_COMMON_CONFIG_PATH"] = COMMON_CONFIG_PATH
     environ["GEM5_CPU_CONFIG_PATH"] = CPU_CONFIG_PATH
 
-    if (bench_type != "spec_cpu" and bench_type != "polybench"):
+    if (bench_type != "spec_cpu" and bench_type != "polybench" and bench_type != "mix"):
         print(f" Wrong Benchmark Type - {bench_type}")
         exit(1)
 
@@ -268,7 +307,10 @@ if __name__ == '__main__':
                         "floyd-warshall","gemm","gramschmidt","heat-3d","jacobi-2d","lu","ludcmp","nussinov",
                         "seidel-2d","symm","syr2k","syrk","trmm"]
  
-    # benchmark_list = ["400.perlbench"]
+    elif bench_type == "mix":
+        benchmark_list = ["h1","h2", "h3", "m1", "m2", "m3", "l1", "l2", "l3", "x1", "x2", "x3"]
+        # benchmark_list = ["h1"]
+    
     num_benchs = len(benchmark_list)
 
     num_workers = 4
@@ -332,8 +374,9 @@ if __name__ == '__main__':
                         print(f"[DONE] {bench_name}")
 
                     # worker 내부 예외가 있으면 여기서 raise되게 해서 실패를 바로 알 수 있음
-                    f.result()                
-        exit_curses(stdscr)
+                    f.result()    
+        if not no_use_curses:                                
+            exit_curses(stdscr)
 
     except:
         exit_curses(stdscr)
@@ -379,6 +422,6 @@ if __name__ == '__main__':
                 print(f"[{benchname[:20]}] is Done ? [{output}]\n")
             except Exception as exc:
                 print(f"Task {key} encountered an error: {exc}")
-                exit_curses()  
+                exit_curses(stdscr) 
 
     sys.stdout = original_stdout
